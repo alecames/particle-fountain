@@ -1,6 +1,7 @@
 #include <freeglut.h>
 #include <vector>
 #include <memory>
+#include <string>
 
 // COSC 3P98 - Computer Graphics - Assignment 3
 // This program will generate a 3d particle fountain
@@ -9,12 +10,11 @@
 // Julian Ellis Geronimo     Student #: 6756597
 // Due Date: April 10th, 2023
 
+// gl shape types
+enum Shape { SPHERE, CUBE, TETRAHEDRON, TORUS, CONE, CYLINDER };
 
-const int WIDTH = 800;      // window width
-const int HEIGHT = 800;     // window height
-const float G = 0.05f; 		// gravity constant
-
-enum Shape { SPHERE, CUBE, TETRAHEDRON, TORUS, CONE, TEAPOT };
+// fire modes
+enum FireMode { CONTINUOUS, MANUAL, SINGLE };
 
 // color
 struct Color {
@@ -33,38 +33,53 @@ struct Particle {
 	float dx, dy, dz;               // direction
 	float speed;                    // speed
 	float rx, ry, rz;               // rotation angles
-	float rix, riy, riz;   // rotation angle increments
-	float scaleX, scaleY, scaleZ;   // scale factors
-	Shape shape;        // object shape type
+	float rix, riy, riz;  			// rotation angle increments
+	float scale;                    // scale
+	Shape shape;        			// object shape type
 	Color color;	                // color
 	int state;                      // state: alive
 	float age;                      // age: used if entities have a finite lifespan
 	std::shared_ptr<Particle> next; // next Record Pointer
 };
 
-// max particle count
-const int MAX_PARTICLES = 1000;
-
 std::vector<std::shared_ptr<Particle>> particles;
-float floorSize = 100.0f;
-float fountainSize = 15.0f;
-float zoom = -180.0f;
-float speed = 1.0f;
-float randomSpeed = false;
 
-// vars for mouse control
-float xr = 0.0f; 	// x plane rotation
-float yr = 0.0f; 	// y plane rotation
-int lx = 0; 		// last x position
-int ly = 0; 		// last y position
-bool clicked = false;
+const int WIDTH = 800;     			// window width
+const int HEIGHT = 800;    			// window height
+const float G = 0.08f; 				// gravity constant
+const float MOON_G = 0.02f; 		// moon gravity constant
+const int MAX_PARTICLES = 1000; 	// max particle count
+const int MAX_AGE = 5; 				// max age of particle
+
+const float floorSize = 30.0f; 		// size of floor
+const float fountainSize = 15.0f; 	// size of fountain
+bool showMenu = true; 				// show menu toggle
+
+// params
+bool randomSpeed = false; 			// random speed toggle
+bool randomColor = false; 			// random color toggle
+bool randomShape = false; 			// random shape toggle
+Shape userShape = TETRAHEDRON; 		// user selected shape default
+bool randomScale = false; 			// random scale toggle
+bool randomRotation = true; 		// random rotation toggle
+bool moonGravity = false; 			// moon gravity toggle
+FireMode fireMode = CONTINUOUS; 	// fire mode default
+bool fired = false; 				// firing toggle
+
+// vars for camera control
+float xr = 0.0f; 					// x plane rotation
+float yr = 0.0f; 					// y plane rotation
+int lx = 0; 						// last x position
+int ly = 0; 						// last y position
+bool clicked = false; 				// mouse clicked
+float zoom = -180.0f; 				// zoom
 
 // sets up lighting 
 void setupLighting() {
 	glEnable(GL_LIGHTING);
 	glEnable(GL_LIGHT0);
 
-	GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
+	GLfloat ambientLight[] = { 0.25f, 0.2f, 0.2f, 1.0f };
 	GLfloat lightPosition[] = { 50.0f, 50.0f, 50.0f, 1.0f };
 
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
@@ -85,31 +100,43 @@ void drawFloor() {
 
 // draws the fountain that the particles will be emitted from
 void drawFountain() {
+	// fountain color (patina green)
+	glColor3f(0.41, 0.52, 0.45);
 	// cylinder base of fountain
-	glColor3f(0.5f, 0.5f, 0.5f);
 	glPushMatrix();
-	glTranslatef(0.0f, 0.0f, 0.0f);
+	glTranslatef(0.0f, 3.0f, 0.0f);
 	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-	glutSolidCylinder(fountainSize, 4.0f, 24, 1);
+	glutSolidCylinder(fountainSize, 3.0f, 24, 1);
 	glPopMatrix();
 
+	// switch to blue
+	glColor3f(0.13, 0.17, 0.34);
+	// fountain water
+	glPushMatrix();
+	glTranslatef(0.0f, 4.0f, 0.0f);
+	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+	glutSolidCylinder(fountainSize - 0.5f, 4.0f, 24, 1);
+	glPopMatrix();
+	
+
+	glColor3f(0.41, 0.52, 0.45);
 	// ridge
 	glPushMatrix();
-	glTranslatef(0.0f, 1.0f, 0.0f);
+	glTranslatef(0.0f, 4.0f, 0.0f);
 	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
-	glutSolidTorus(3.0f, fountainSize, 24, 20);
+	glutSolidTorus(2.0f, fountainSize, 5, 24);
 	glPopMatrix();
 
 	// cone top of fountain
 	glPushMatrix();
-	glTranslatef(0.0f, 0.0f, 0.0f);
+	glTranslatef(0.0f, 4.0f, 0.0f);
 	glRotatef(90.0f, -1.0f, 0.0f, 0.0f);
-	glutSolidCone(2.0f, fountainSize - 2.0f, 20, 20);
+	glutSolidCone(2.0f, fountainSize - 2.0f, 10, 10);
 	glPopMatrix();
 
 	// other cone top of fountain
 	glPushMatrix();
-	glTranslatef(0.0f, fountainSize, 0.0f);
+	glTranslatef(0.0f, fountainSize + 4.0f, 0.0f);
 	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
 	glutSolidCone(3.0f, 3.0f, 20, 20);
 	glPopMatrix();
@@ -117,19 +144,15 @@ void drawFountain() {
 
 // creates a particle
 void createParticle() {
-	if (particles.size() >= MAX_PARTICLES) {
-		particles.erase(particles.begin());
-	}
+	if (particles.size() >= MAX_PARTICLES) particles.erase(particles.begin());
 	auto p = std::make_shared<Particle>();
+	(*p).age = 0.0f;
 	(*p).px = 0.0f;
-	(*p).py = fountainSize; 
+	(*p).py = fountainSize + 4.0f;
 	(*p).pz = 0.0f;
 	(*p).dx = (rand() % 100 - 50) * 0.01f;
 	(*p).dy = 1.0f + (rand() % 100) * 0.01f;
 	(*p).dz = (rand() % 100 - 50) * 0.01f;
-	if (randomSpeed) {
-		speed = (rand() % 100) * 0.01f;
-	} (*p).speed = speed;
 	(*p).rx = 0.0f;
 	(*p).ry = 0.0f;
 	(*p).rz = 0.0f;
@@ -165,7 +188,7 @@ void updateParticles() {
 
 	for (auto& p : particles) {
 		(*p).dx += 0.0f;
-		(*p).dy -= G;
+		(*p).dy -= moonGravity ? MOON_G : G;
 		(*p).dz += 0.0f;
 
 		(*p).px += (*p).dx * (*p).speed;
@@ -185,11 +208,11 @@ void updateParticles() {
 		(*p).ry += (*p).riy;
 		(*p).rz += (*p).riz;
 
-		(*p).age += 1.0f;
+		(*p).age += 0.025f;
 	}
 
-	particles.erase(std::remove_if(particles.begin(), particles.end(), [](const std::shared_ptr<Particle>& p) {
-		return (*p).py < 0.0f;
+	particles.erase(std::remove_if(particles.begin(), particles.end(), [bounceCutoff](const std::shared_ptr<Particle>& p) {
+		return (*p).speed < bounceCutoff || (*p).age >= 5;
 		}), particles.end());
 }
 
@@ -223,12 +246,9 @@ void drawParticles() {
 			glutSolidCylinder(1, 2, 8, 8);
 			break;
 		}
-		else if ((*p).shape == Shape::SPHERE) {
-			glutSolidSphere(1.0f, 10, 10);
-		}
-		else if ((*p).shape == Shape::CONE) {
-			glutSolidCone(1.0f, 1.0f, 10, 10);
-		}
+		glPopMatrix();
+	}
+}
 
 // reset state
 void reset() {
@@ -328,21 +348,9 @@ void timer(int value) {
 	glutTimerFunc(10, timer, 0);
 }
 
-// prints controls to terminal
-void showcmds() {
-	printf("|------------------------------------------------------------------------------|\n");
-	printf("| H: Help                       PARTICLE FOUNTAIN                ESC / Q: Quit |\n");
-	printf("|------------------------------------------------------------------------------|\n");
-	printf("|                                                                              |\n");
-	printf("|------------------------------------------------------------------------------|\n");
-}
-
 // handles keyboard events
 void keyboard(unsigned char key, int x, int y) {
 	switch (tolower(key)) {
-	case 'q': // quit with q
-		exit(0);
-		break;
 	case 27: // quit with esc
 		exit(0);
 		break;
@@ -450,16 +458,16 @@ int main(int argc, char** argv) {
 	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE);
 	glutInitWindowSize(WIDTH, HEIGHT);
 	glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH) - WIDTH) / 2, (glutGet(GLUT_SCREEN_HEIGHT) - HEIGHT) / 2);
-	glEnable(GL_DEPTH_TEST);
 	glutCreateWindow("Particle Fountain");
 
-	// show print controls
-	showcmds();
-	createMenu();
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glEnable(GL_DEPTH_TEST);
 
 	glutTimerFunc(10, timer, 0);
 	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
+	glutKeyboardUpFunc(keyup);
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
 
