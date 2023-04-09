@@ -133,16 +133,27 @@ void createParticle() {
 	(*p).rx = 0.0f;
 	(*p).ry = 0.0f;
 	(*p).rz = 0.0f;
-	(*p).rix = (rand() % 100 - 20) * 0.01f;
-	(*p).riy = (rand() % 100 - 80) * 0.01f;
-	(*p).riz = (rand() % 100 - 50) * 0.01f;
-	(*p).scaleX = 1.0f;
-	(*p).scaleY = 1.0f;
-	(*p).scaleZ = 1.0f;
+	(*p).rix = randomRotation ? (0.01 * (rand() % 360) - 180) : 0.0f;
+	(*p).riy = randomRotation ? (0.01 * (rand() % 360) - 180) : 0.0f;
+	(*p).riz = randomRotation ? (0.01 * (rand() % 360) - 180) : 0.0f;
+	(*p).scale = randomScale ? (rand() % 100) * 0.01f : 1.0f;
+	(*p).shape = randomShape ? static_cast<Shape>(rand() % 6) : userShape;
 
-	(*p).shape = Shape::TETRAHEDRON;
-	(*p).color.randomize();
-	(*p).age = 0.0f;
+	if (randomColor) {
+		(*p).color.randomize();
+	}
+	else { // default to blue (water)
+		(*p).color.r = 0.16f;
+		(*p).color.g = 0.25f;
+		(*p).color.b = 0.49f;
+	}
+
+	if (randomSpeed) {
+		(*p).speed = (rand() % 100) * 0.01f;
+	}
+	else {
+		(*p).speed = 1.0f;
+	}
 
 	particles.push_back(p);
 }
