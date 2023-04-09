@@ -198,8 +198,30 @@ void drawParticles() {
 		glPushMatrix();
 		glColor3f((*p).color.r, (*p).color.g, (*p).color.b);
 		glTranslatef((*p).px, (*p).py, (*p).pz);
-		if ((*p).shape == Shape::CUBE) {
-			glutSolidCube(1.0f);
+		glRotatef((*p).rx, 1.0f, 0.0f, 0.0f);
+		glRotatef((*p).ry, 0.0f, 1.0f, 0.0f);
+		glRotatef((*p).rz, 0.0f, 0.0f, 1.0f);
+		glScalef((*p).scale, (*p).scale, (*p).scale);
+
+		switch ((*p).shape) {
+		case SPHERE:
+			glutSolidSphere(1, 8, 8);
+			break;
+		case CUBE:
+			glutSolidCube(1);
+			break;
+		case TETRAHEDRON:
+			glutSolidTetrahedron();
+			break;
+		case TORUS:
+			glutSolidTorus(0.5, 1, 8, 8);
+			break;
+		case CONE:
+			glutSolidCone(1, 2, 8, 8);
+			break;
+		case CYLINDER:
+			glutSolidCylinder(1, 2, 8, 8);
+			break;
 		}
 		else if ((*p).shape == Shape::SPHERE) {
 			glutSolidSphere(1.0f, 10, 10);
