@@ -229,16 +229,62 @@ void drawParticles() {
 		else if ((*p).shape == Shape::CONE) {
 			glutSolidCone(1.0f, 1.0f, 10, 10);
 		}
-		else if ((*p).shape == Shape::TETRAHEDRON) {
-			glutSolidTetrahedron();
+
+// reset state
+void reset() {
+	particles.clear();
+	randomSpeed = false; 			// random speed toggle
+	randomColor = false; 			// random color toggle
+	randomShape = false; 			// random shape toggle
+	userShape = TETRAHEDRON; 		// user selected shape default
+	randomScale = false; 			// random scale toggle
+	randomRotation = true; 			// random rotation toggle
+	moonGravity = false; 			// moon gravity toggle
+	fireMode = CONTINUOUS; 			// fire mode default
+	fired = false; 					// firing toggle
+}
+
+// draw overlay text
+void drawText(const std::string& text, float x, float y) {
+	glRasterPos2f(x, y);
+	for (char c : text) glutBitmapCharacter(GLUT_BITMAP_8_BY_13, c);
+}
+
+// draw menu
+void drawMenu() {
+	// pos vars
+	int gap = 12;
+	int first = gap*9.5;
+	int mWidth1 = 170;
+	int mWidth2 = 400;
+
+	glColor3f(0.8, 0.8, 0.8);
+
+	if (showMenu) {
+		drawText("S - Random speed: " + std::string(randomSpeed ? "true" : "false"), 10, first - gap);
+		drawText("Q - Toggle fire mode", 10, first - gap * 2);
+		if (fireMode == 0) drawText(" | Continuous", mWidth1, first - gap * 2);
+		else if (fireMode == 1) drawText(" | F - Hold to fire", mWidth1, first - gap * 2);
+		else if (fireMode == 2) drawText(" | F - Single fire", mWidth1, first - gap * 2);
+
+		drawText("C - Random color: " + std::string(randomColor ? "true" : "false"), 10, first - gap * 3);
+		drawText("X - Random shape: " + std::string(randomShape ? "true" : std::to_string(userShape + 1)), 10, first - gap * 4);
+		if (!randomShape) {
+			drawText("1 - Sphere", mWidth2, first - gap);
+			drawText("2 - Cube", mWidth2, first - gap * 2);
+			drawText("3 - Tetrahedron", mWidth2, first - gap * 3);
+			drawText("4 - Torus", mWidth2, first - gap * 4);
+			drawText("5 - Cone", mWidth2, first - gap * 5);
+			drawText("6 - Cylinder", mWidth2, first - gap * 6);
 		}
-		else if ((*p).shape == Shape::TEAPOT) {
-			glutSolidTeapot(1.0f);
-		}
-		else if ((*p).shape == Shape::TORUS) {
-			glutSolidTorus(0.5f, 1.0f, 10, 10);
-		}
-		glPopMatrix();
+		drawText("Z - Random scale: " + std::string(randomScale ? "true" : "false"), 10, first - gap * 5);
+		drawText("R - Random rotation: " + std::string(randomRotation ? "true" : "false"), 10, first - gap * 6);
+		drawText("G - Moon gravity: " + std::string(moonGravity ? "true" : "false"), 10, first - gap * 7);
+		drawText("I - Initialize", 10, first - gap * 8);
+		drawText("H - Toggle menu", 10, first - gap * 9);
+	}
+	else {
+		drawText("H - Toggle menu", 10, gap * 0.5);
 	}
 }
 
@@ -254,28 +300,29 @@ void display() {
 	drawFloor();
 	drawFountain();
 	drawParticles();
+
+	// overlay
+	glMatrixMode(GL_PROJECTION);
+	glPushMatrix();
+	glLoadIdentity();
+	glOrtho(0, glutGet(GLUT_WINDOW_WIDTH), 0, glutGet(GLUT_WINDOW_HEIGHT), -1, 1);
+	glMatrixMode(GL_MODELVIEW);
+	glPushMatrix();
+	glLoadIdentity();
+
+	drawMenu();
+
+	// Restore the matrices
+	glPopMatrix();
+	glMatrixMode(GL_PROJECTION);
+	glPopMatrix();
+	glMatrixMode(GL_MODELVIEW);
+
 	glutSwapBuffers();
 }
 
-void menuFunc(int option) {
-	switch (option) {
-	case 1:
-		// 
-		break;
-	case 2:
-		exit(0);
-		break;
-	}
-}
-
-void createMenu() {
-	int menu = glutCreateMenu(menuFunc);
-	glutAddMenuEntry("Exit", 2);
-	glutAttachMenu(GLUT_RIGHT_BUTTON);
-}
-
 void timer(int value) {
-	createParticle();
+	if (fireMode == 0) createParticle();
 	updateParticles();
 	glutPostRedisplay();
 	glutTimerFunc(10, timer, 0);
@@ -299,19 +346,79 @@ void keyboard(unsigned char key, int x, int y) {
 	case 27: // quit with esc
 		exit(0);
 		break;
-	case 'h': // h - help
-		showcmds();
+	case 'i': // i - init
+		reset();
+		break;
+	case 'q': // q - toggle fire mode
+		fireMode = static_cast<FireMode>((fireMode + 1) % 3);
+		break;
+	case 'h': // h - toggle commands
+		showMenu = !showMenu;
 		break;
 	case 's': // s - toggle random particle speed
 		randomSpeed = !randomSpeed;
+		break;
+	case 'c': // c - toggle random color
+		randomColor = !randomColor;
+		break;
+	case 'x': // x - toggle random shape
+		randomShape = !randomShape;
+		break;
+	case 'z': // z - toggle random scale
+		randomScale = !randomScale;
+		break;
+	case 'r': // r - toggle random rotation
+		randomRotation = !randomRotation;
+		break;
+	case 'f': // f - fire
+		if (fireMode == 1) {
+			createParticle();
+		}
+		else if (fireMode == 2) {
+			if (!fired) {
+				createParticle();
+				fired = true;
+			}
+		}
+		break;
+	case 'g': // g - toggle moon gravity
+		moonGravity = !moonGravity;
+		break;
+	case '1':
+		userShape = SPHERE;
+		break;
+	case '2':
+		userShape = CUBE;
+		break;
+	case '3':
+		userShape = TETRAHEDRON;
+		break;
+	case '4':
+		userShape = TORUS;
+		break;
+	case '5':
+		userShape = CONE;
+		break;
+	case '6':
+		userShape = CYLINDER;
 		break;
 	default:
 		break;
 	}
 }
 
+// for single fire mode
+void keyup(unsigned char key, int x, int y) {
+	switch (tolower(key)) {
+	case 'f':
+		if (fireMode == 2) fired = false;
+		break;
+	default: break;
+	}
+}
+
 void mouse(int button, int state, int x, int y) {
-	if (button == GLUT_LEFT_BUTTON) {
+	if (button == GLUT_LEFT_BUTTON) { // camera rotation controls
 		if (state == GLUT_DOWN) {
 			clicked = true;
 			lx = x;
@@ -319,8 +426,9 @@ void mouse(int button, int state, int x, int y) {
 		}
 		else clicked = false;
 	}
-	if (button == 3 && state == GLUT_UP && zoom < -1.0f) zoom += 3.0f;
-	if (button == 4 && state == GLUT_UP) zoom -= 3.0f;
+	// zoom controls
+	if (button == 3 && state == GLUT_UP && zoom < -1.0f) zoom += 5.0f;
+	if (button == 4 && state == GLUT_UP) zoom -= 5.0f;
 	glutPostRedisplay();
 }
 
