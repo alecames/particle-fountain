@@ -13,8 +13,20 @@ const int WIDTH = 800;      // window width
 const int HEIGHT = 800;     // window height
 const float GRAVITY = 9.81f; // gravity constant
 
-enum ParticleShape { SPHERE, CUBE };
+enum Shape { SPHERE, CUBE, TETRAHEDRON, TORUS, CONE, TEAPOT };
 
+// color
+struct Color {
+	float r, g, b;
+
+	void randomize() {
+		r = (rand() % 100) * 0.01f;
+		g = (rand() % 100) * 0.01f;
+		b = (rand() % 100) * 0.01f;
+	}
+};
+
+// particle struct
 struct Particle {
 	float px, py, pz;               // position
 	float dx, dy, dz;               // direction
