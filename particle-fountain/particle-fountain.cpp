@@ -157,6 +157,22 @@ void updateParticles(float g) {
 		if ((*p).py < 0.0f) {
 			particles.erase(std::remove(particles.begin(), particles.end(), p), particles.end());
 		}
+		else if ((*p).shape == Shape::SPHERE) {
+			glutSolidSphere(1.0f, 10, 10);
+		}
+		else if ((*p).shape == Shape::CONE) {
+			glutSolidCone(1.0f, 1.0f, 10, 10);
+		}
+		else if ((*p).shape == Shape::TETRAHEDRON) {
+			glutSolidTetrahedron();
+		}
+		else if ((*p).shape == Shape::TEAPOT) {
+			glutSolidTeapot(1.0f);
+		}
+		else if ((*p).shape == Shape::TORUS) {
+			glutSolidTorus(0.5f, 1.0f, 10, 10);
+		}
+		glPopMatrix();
 	}
 }
 
@@ -175,6 +191,23 @@ void display() {
 	drawFountain();
 
 	glutSwapBuffers();
+}
+
+void menuFunc(int option) {
+	switch (option) {
+	case 1:
+		// 
+		break;
+	case 2:
+		exit(0);
+		break;
+	}
+}
+
+void createMenu() {
+	int menu = glutCreateMenu(menuFunc);
+	glutAddMenuEntry("Exit", 2);
+	glutAttachMenu(GLUT_RIGHT_BUTTON);
 }
 
 void timer(int value) {
