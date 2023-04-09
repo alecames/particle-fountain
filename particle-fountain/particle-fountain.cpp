@@ -279,7 +279,10 @@ void motion(int x, int y) {
 
 int main(int argc, char** argv) {
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
+
+	// multisampling anti-aliasing - based on https://stackoverflow.com/a/28821361
+	glutSetOption(GLUT_MULTISAMPLE, 4);
+	glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH | GLUT_MULTISAMPLE);
 	glutInitWindowSize(WIDTH, HEIGHT);
 	glutInitWindowPosition((glutGet(GLUT_SCREEN_WIDTH) - WIDTH) / 2, (glutGet(GLUT_SCREEN_HEIGHT) - HEIGHT) / 2);
 	glEnable(GL_DEPTH_TEST);
