@@ -4,6 +4,7 @@
 
 // COSC 3P98 - Computer Graphics - Assignment 3
 // This program will generate a 3d particle fountain
+
 // Alec Ames                 Student #: 6843577
 // Julian Ellis Geronimo     Student #: 6756597
 // Due Date: April 10th, 2023
@@ -32,28 +33,30 @@ struct Particle {
 	float dx, dy, dz;               // direction
 	float speed;                    // speed
 	float rx, ry, rz;               // rotation angles
-	float rIncrX, rIncrY, rIncrZ;   // rotation angle increments
+	float rix, riy, riz;   // rotation angle increments
 	float scaleX, scaleY, scaleZ;   // scale factors
-	ParticleShape shapeType;        // object shape type
-	float r, g, b;                  // color
-	int state;                      // state
-	float age;                      // age
+	Shape shape;        // object shape type
+	Color color;	                // color
+	int state;                      // state: alive
+	float age;                      // age: used if entities have a finite lifespan
 	std::shared_ptr<Particle> next; // next Record Pointer
 };
 
-
+// max particle count
 const int MAX_PARTICLES = 1000;
-const int PARTICLE_CREATION_INTERVAL = 100; // interval in milliseconds between particle creation
 
 std::vector<std::shared_ptr<Particle>> particles;
-int particleCreationTimer = 0; // timer to keep track of the time since the last particle was created
-float groundSize = 100.0f;
+float floorSize = 100.0f;
 float fountainSize = 15.0f;
+float zoom = -180.0f;
+float speed = 1.0f;
+float randomSpeed = false;
 
-float xRot = 0.0f;
-float yRot = 0.0f;
-int lastX = 0;
-int lastY = 0;
+// vars for mouse control
+float xr = 0.0f; 	// x plane rotation
+float yr = 0.0f; 	// y plane rotation
+int lx = 0; 		// last x position
+int ly = 0; 		// last y position
 bool clicked = false;
 
 // sets up lighting 
@@ -62,13 +65,9 @@ void setupLighting() {
 	glEnable(GL_LIGHT0);
 
 	GLfloat ambientLight[] = { 0.2f, 0.2f, 0.2f, 1.0f };
-	GLfloat diffuseLight[] = { 0.8f, 0.8f, 0.8f, 1.0f };
-	GLfloat specularLight[] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	GLfloat lightPosition[] = { 0.0f, 50.0f, 100.0f, 1.0f };
+	GLfloat lightPosition[] = { 50.0f, 50.0f, 50.0f, 1.0f };
 
 	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_DIFFUSE, diffuseLight);
-	glLightfv(GL_LIGHT0, GL_SPECULAR, specularLight);
 	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 }
 
@@ -77,10 +76,10 @@ void drawFloor() {
 	glColor3f(0.5f, 0.5f, 0.5f);
 	glBegin(GL_QUADS);
 	glNormal3f(0.0f, 1.0f, 0.0f);
-	glVertex3f(-groundSize, 0.0f, -groundSize);
-	glVertex3f(-groundSize, 0.0f, groundSize);
-	glVertex3f(groundSize, 0.0f, groundSize);
-	glVertex3f(groundSize, 0.0f, -groundSize);
+	glVertex3f(-floorSize, 0.0f, -floorSize);
+	glVertex3f(-floorSize, 0.0f, floorSize);
+	glVertex3f(floorSize, 0.0f, floorSize);
+	glVertex3f(floorSize, 0.0f, -floorSize);
 	glEnd();
 }
 
@@ -116,16 +115,14 @@ void drawFountain() {
 	glPopMatrix();
 }
 
+// creates a particle
 void createParticle() {
 	if (particles.size() >= MAX_PARTICLES) {
 		particles.erase(particles.begin());
 	}
-	float speed = 1.0f; // default speed
-	float g = 0.05f; // gravity
-
 	auto p = std::make_shared<Particle>();
 	(*p).px = 0.0f;
-	(*p).py = fountainSize;
+	(*p).py = fountainSize; 
 	(*p).pz = 0.0f;
 	(*p).dx = (rand() % 100 - 50) * 0.01f;
 	(*p).dy = 1.0f + (rand() % 100) * 0.01f;
@@ -150,22 +147,36 @@ void createParticle() {
 	particles.push_back(p);
 }
 
-
-void updateParticles(float g) {
+// animates the particles
+void updateParticles() {
 	for (auto& p : particles) {
 		(*p).dx += 0.0f;
-		(*p).dy -= g;
+		(*p).dy -= G;
 		(*p).dz += 0.0f;
 
 		(*p).px += (*p).dx * (*p).speed;
 		(*p).py += (*p).dy * (*p).speed;
 		(*p).pz += (*p).dz * (*p).speed;
 
-		(*p).age += 1.0f;
+		(*p).rx += (*p).rix;
+		(*p).ry += (*p).riy;
+		(*p).rz += (*p).riz;
 
-		// remove the particle if it falls below the ground
-		if ((*p).py < 0.0f) {
-			particles.erase(std::remove(particles.begin(), particles.end(), p), particles.end());
+		(*p).age += 1.0f;
+	}
+
+	particles.erase(std::remove_if(particles.begin(), particles.end(), [](const std::shared_ptr<Particle>& p) {
+		return (*p).py < 0.0f;
+		}), particles.end());
+}
+
+void drawParticles() {
+	for (auto& p : particles) {
+		glPushMatrix();
+		glColor3f((*p).color.r, (*p).color.g, (*p).color.b);
+		glTranslatef((*p).px, (*p).py, (*p).pz);
+		if ((*p).shape == Shape::CUBE) {
+			glutSolidCube(1.0f);
 		}
 		else if ((*p).shape == Shape::SPHERE) {
 			glutSolidSphere(1.0f, 10, 10);
@@ -186,20 +197,18 @@ void updateParticles(float g) {
 	}
 }
 
-// display loop
 void display() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
 	glMatrixMode(GL_MODELVIEW);
-	glLoadIdentity();
 
-	gluLookAt(0.0, 80.0, 200.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
-	glRotatef(xRot, 1.0f, 0.0f, 0.0f);
-	glRotatef(yRot, 0.0f, 1.0f, 0.0f);
+	glLoadIdentity();
+	gluLookAt(0.0, 80.0, zoom, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+	glRotatef(xr, 1.0f, 0.0f, 0.0f);
+	glRotatef(yr, 0.0f, 1.0f, 0.0f);
 
 	drawFloor();
 	drawFountain();
-
+	drawParticles();
 	glutSwapBuffers();
 }
 
@@ -221,7 +230,8 @@ void createMenu() {
 }
 
 void timer(int value) {
-	updateParticles(0.05f);
+	createParticle();
+	updateParticles();
 	glutPostRedisplay();
 	glutTimerFunc(10, timer, 0);
 }
@@ -247,8 +257,8 @@ void keyboard(unsigned char key, int x, int y) {
 	case 'h': // h - help
 		showcmds();
 		break;
-	case 's': // s - create a particle with random speed
-		createParticle();
+	case 's': // s - toggle random particle speed
+		randomSpeed = !randomSpeed;
 		break;
 	default:
 		break;
@@ -259,20 +269,22 @@ void mouse(int button, int state, int x, int y) {
 	if (button == GLUT_LEFT_BUTTON) {
 		if (state == GLUT_DOWN) {
 			clicked = true;
-			lastX = x;
-			lastY = y;
+			lx = x;
+			ly = y;
 		}
 		else clicked = false;
 	}
-	}
+	if (button == 3 && state == GLUT_UP && zoom < -1.0f) zoom += 3.0f;
+	if (button == 4 && state == GLUT_UP) zoom -= 3.0f;
+	glutPostRedisplay();
 }
 
 void motion(int x, int y) {
 	if (clicked) {
-		yRot += (x - lastX) * 0.5f;
-		xRot += (y - lastY) * 0.5f;
-		lastX = x;
-		lastY = y;
+		yr += (x - lx) * 0.5f;
+		xr -= (y - ly) * 0.5f;
+		lx = x;
+		ly = y;
 		glutPostRedisplay();
 	}
 }
@@ -290,17 +302,13 @@ int main(int argc, char** argv) {
 
 	// show print controls
 	showcmds();
+	createMenu();
 
 	glutTimerFunc(10, timer, 0);
-	glutIdleFunc(display);
+	glutDisplayFunc(display);
 	glutKeyboardFunc(keyboard);
 	glutMouseFunc(mouse);
 	glutMotionFunc(motion);
-
-	glEnable(GL_BLEND); // attempt to smooth out points
-	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-	glEnable(GL_POINT_SMOOTH);
-	glHint(GL_POINT_SMOOTH_HINT, GL_NICEST);
 
 	// setup projection
 	glMatrixMode(GL_PROJECTION);

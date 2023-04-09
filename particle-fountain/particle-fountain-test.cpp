@@ -37,7 +37,7 @@ struct Particle {
 
 const int MAX_PARTICLES = 1000;
 std::vector<Particle> particles(MAX_PARTICLES);
-float groundSize = 100.0f;
+float floorSize = 100.0f;
 float fountainSize = 5.0f;
 
 void initParticles() {
@@ -88,11 +88,11 @@ void updateParticles() {
 			p.ay += p.day;
 			p.az += p.daz;
 
-			if (p.y < -groundSize / 2 && abs(p.x) < groundSize / 2 && abs(p.z) < groundSize / 2) {
+			if (p.y < -floorSize / 2 && abs(p.x) < floorSize / 2 && abs(p.z) < floorSize / 2) {
 				p.vy = -p.vy * 0.9f; // bounce and apply friction
 			}
 
-			if (p.y < -groundSize) {
+			if (p.y < -floorSize) {
 				p.active = false; // particle has fallen below the ground
 			}
 
@@ -113,10 +113,10 @@ void drawScene() {
 	// Draw the ground
 	glColor3f(0.0f, 1.0f, 0.0f); // set ground color (green)
 	glBegin(GL_QUADS);
-	glVertex3f(-groundSize / 2, -groundSize / 2, groundSize / 2);
-	glVertex3f(groundSize / 2, -groundSize / 2, groundSize / 2);
-	glVertex3f(groundSize / 2, -groundSize / 2, -groundSize / 2);
-	glVertex3f(-groundSize / 2, -groundSize / 2, -groundSize / 2);
+	glVertex3f(-floorSize / 2, -floorSize / 2, floorSize / 2);
+	glVertex3f(floorSize / 2, -floorSize / 2, floorSize / 2);
+	glVertex3f(floorSize / 2, -floorSize / 2, -floorSize / 2);
+	glVertex3f(-floorSize / 2, -floorSize / 2, -floorSize / 2);
 	glEnd();
 
 
