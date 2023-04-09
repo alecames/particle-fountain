@@ -160,6 +160,9 @@ void createParticle() {
 
 // animates the particles
 void updateParticles() {
+	const float bounciness = 0.5f;
+	const float bounceCutoff = 0.01f;
+
 	for (auto& p : particles) {
 		(*p).dx += 0.0f;
 		(*p).dy -= G;
@@ -168,6 +171,15 @@ void updateParticles() {
 		(*p).px += (*p).dx * (*p).speed;
 		(*p).py += (*p).dy * (*p).speed;
 		(*p).pz += (*p).dz * (*p).speed;
+
+		// checks if floor is under particle
+		if (((*p).px < -floorSize || (*p).px > floorSize || (*p).pz < -floorSize || (*p).pz > floorSize) == false) {
+			if ((*p).py < (*p).scale / 1.5f) {
+				(*p).py = (*p).scale / 1.5f;
+				(*p).dy *= -bounciness;
+				(*p).speed *= bounciness;
+			}
+		}
 
 		(*p).rx += (*p).rix;
 		(*p).ry += (*p).riy;
