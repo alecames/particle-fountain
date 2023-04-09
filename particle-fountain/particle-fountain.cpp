@@ -130,11 +130,21 @@ void createParticle() {
 	(*p).dx = (rand() % 100 - 50) * 0.01f;
 	(*p).dy = 1.0f + (rand() % 100) * 0.01f;
 	(*p).dz = (rand() % 100 - 50) * 0.01f;
-	(*p).speed = (rand() % 100) * 0.01f;
-	(*p).shapeType = ParticleShape::CUBE;
-	(*p).r = (rand() % 100) * 0.01f;
-	(*p).g = (rand() % 100) * 0.01f;
-	(*p).b = (rand() % 100) * 0.01f;
+	if (randomSpeed) {
+		speed = (rand() % 100) * 0.01f;
+	} (*p).speed = speed;
+	(*p).rx = 0.0f;
+	(*p).ry = 0.0f;
+	(*p).rz = 0.0f;
+	(*p).rix = (rand() % 100 - 20) * 0.01f;
+	(*p).riy = (rand() % 100 - 80) * 0.01f;
+	(*p).riz = (rand() % 100 - 50) * 0.01f;
+	(*p).scaleX = 1.0f;
+	(*p).scaleY = 1.0f;
+	(*p).scaleZ = 1.0f;
+
+	(*p).shape = Shape::TETRAHEDRON;
+	(*p).color.randomize();
 	(*p).age = 0.0f;
 
 	particles.push_back(p);
@@ -252,9 +262,8 @@ void mouse(int button, int state, int x, int y) {
 			lastX = x;
 			lastY = y;
 		}
-		else {
-			clicked = false;
-		}
+		else clicked = false;
+	}
 	}
 }
 
