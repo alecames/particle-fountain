@@ -11,7 +11,7 @@
 
 const int WIDTH = 800;      // window width
 const int HEIGHT = 800;     // window height
-const float GRAVITY = 9.81f; // gravity constant
+const float G = 0.05f; 		// gravity constant
 
 enum Shape { SPHERE, CUBE, TETRAHEDRON, TORUS, CONE, TEAPOT };
 
@@ -86,10 +86,33 @@ void drawFloor() {
 
 // draws the fountain that the particles will be emitted from
 void drawFountain() {
-	glColor3f(0.35, 0.67, 0.37);
+	// cylinder base of fountain
+	glColor3f(0.5f, 0.5f, 0.5f);
 	glPushMatrix();
-	glTranslatef(0.0f, fountainSize / 2, 0.0f);
-	glutSolidCube(fountainSize);
+	glTranslatef(0.0f, 0.0f, 0.0f);
+	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+	glutSolidCylinder(fountainSize, 4.0f, 24, 1);
+	glPopMatrix();
+
+	// ridge
+	glPushMatrix();
+	glTranslatef(0.0f, 1.0f, 0.0f);
+	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+	glutSolidTorus(3.0f, fountainSize, 24, 20);
+	glPopMatrix();
+
+	// cone top of fountain
+	glPushMatrix();
+	glTranslatef(0.0f, 0.0f, 0.0f);
+	glRotatef(90.0f, -1.0f, 0.0f, 0.0f);
+	glutSolidCone(2.0f, fountainSize - 2.0f, 20, 20);
+	glPopMatrix();
+
+	// other cone top of fountain
+	glPushMatrix();
+	glTranslatef(0.0f, fountainSize, 0.0f);
+	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+	glutSolidCone(3.0f, 3.0f, 20, 20);
 	glPopMatrix();
 }
 
