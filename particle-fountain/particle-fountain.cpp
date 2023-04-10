@@ -214,6 +214,12 @@ void updateParticles() {
 				(*p).py = (*p).scale / 1.5f;
 				(*p).dy *= -bounciness;
 				(*p).speed *= bounciness;
+				
+				if ((*p).speed < bounceCutoff) {
+					(*p).rix = 0.0f;
+					(*p).riy = 0.0f;
+					(*p).riz = 0.0f;
+				}
 			}
 		}
 
