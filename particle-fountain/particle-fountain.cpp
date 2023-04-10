@@ -1,10 +1,10 @@
-#include <freeglut.h>
 #include <vector>
 #include <memory>
 #include <string>
+#include <freeglut.h>
 
 // COSC 3P98 - Computer Graphics - Assignment 3
-// This program will generate a 3d particle fountain
+// This program will generate a 3D particle fountain
 
 // Alec Ames                 Student #: 6843577
 // Julian Ellis Geronimo     Student #: 6756597
@@ -16,7 +16,7 @@ enum Shape { SPHERE, CUBE, TETRAHEDRON, TORUS, CONE, CYLINDER };
 // fire modes
 enum FireMode { CONTINUOUS, MANUAL, SINGLE };
 
-// color
+// colour
 struct Color {
 	float r, g, b;
 
@@ -41,9 +41,10 @@ struct Particle {
 	float rix, riy, riz;  			// rotation angle increments
 	float scale;                    // scale
 	Shape shape;        			// object shape type
-	Color color;	                // color
+	Color colour;	                // colour
 	int state;                      // state: alive
-	float age;                      // age: used if entities have a finite lifespan
+	int age;                      	// particle age
+	std::vector<Trail> trails;
 	std::shared_ptr<Particle> next; // next Record Pointer
 };
 
@@ -51,25 +52,28 @@ std::vector<std::shared_ptr<Particle>> particles;
 
 const int WIDTH = 800;     			// window width
 const int HEIGHT = 800;    			// window height
-const float G = 0.08f; 				// gravity constant
-const float MOON_G = 0.02f; 		// moon gravity constant
+const float G = 0.0981f; 			// gravity constant
+const float MOON_G = 0.0162f; 		// moon gravity constant
 const int MAX_PARTICLES = 1000; 	// max particle count
-const int MAX_AGE = 5; 				// max age of particle
+const int MAX_AGE = 240; 			// max age of particle
+const int TRAIL_LEN = 16; 			// max trails per particle
 
 const float floorSize = 30.0f; 		// size of floor
 const float fountainSize = 15.0f; 	// size of fountain
-bool showMenu = true; 				// show menu toggle
 
 // params
+bool showMenu = true; 				// show menu toggle
 bool randomSpeed = false; 			// random speed toggle
-bool randomColor = false; 			// random color toggle
+bool randomColor = false; 			// random colour toggle
 bool randomShape = false; 			// random shape toggle
 Shape userShape = TETRAHEDRON; 		// user selected shape default
 bool randomScale = false; 			// random scale toggle
 bool randomRotation = true; 		// random rotation toggle
 bool moonGravity = false; 			// moon gravity toggle
 FireMode fireMode = CONTINUOUS; 	// fire mode default
-bool fired = false; 				// firing toggle
+bool showTrails = false; 			// show trails toggle
+bool fired = false; 				// fire status (for single shot)
+bool sprayMode = false; 			// spray mode toggle
 
 // vars for camera control
 float xr = 0.0f; 					// x plane rotation
@@ -77,19 +81,7 @@ float yr = 0.0f; 					// y plane rotation
 int lx = 0; 						// last x position
 int ly = 0; 						// last y position
 bool clicked = false; 				// mouse clicked
-float zoom = -180.0f; 				// zoom
-
-// sets up lighting 
-void setupLighting() {
-	glEnable(GL_LIGHTING);
-	glEnable(GL_LIGHT0);
-
-	GLfloat ambientLight[] = { 0.25f, 0.2f, 0.2f, 1.0f };
-	GLfloat lightPosition[] = { 50.0f, 50.0f, 50.0f, 1.0f };
-
-	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
-	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
-}
+float zoom = -180.0f; 				// zoom factor
 
 // draws the floor 
 void drawFloor() {
@@ -105,8 +97,8 @@ void drawFloor() {
 
 // draws the fountain that the particles will be emitted from
 void drawFountain() {
-	// fountain color (patina green)
-	glColor3f(0.41, 0.52, 0.45);
+	// fountain colour (patina green)
+	glColor3f(0.27, 0.31, 0.24);
 	// cylinder base of fountain
 	glPushMatrix();
 	glTranslatef(0.0f, 3.0f, 0.0f);
@@ -122,7 +114,6 @@ void drawFountain() {
 	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
 	glutSolidCylinder(fountainSize - 0.5f, 4.0f, 24, 1);
 	glPopMatrix();
-	
 
 	glColor3f(0.41, 0.52, 0.45);
 	// ridge
@@ -136,12 +127,12 @@ void drawFountain() {
 	glPushMatrix();
 	glTranslatef(0.0f, 4.0f, 0.0f);
 	glRotatef(90.0f, -1.0f, 0.0f, 0.0f);
-	glutSolidCone(2.0f, fountainSize - 2.0f, 10, 10);
+	glutSolidCone(2.0f, fountainSize + 1.0f, 10, 10);
 	glPopMatrix();
 
 	// other cone top of fountain
 	glPushMatrix();
-	glTranslatef(0.0f, fountainSize + 4.0f, 0.0f);
+	glTranslatef(0.0f, fountainSize + 3.0f, 0.0f);
 	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
 	glutSolidCone(3.0f, 3.0f, 20, 20);
 	glPopMatrix();
@@ -159,29 +150,29 @@ void drawFountain() {
 void createParticle() {
 	if (particles.size() >= MAX_PARTICLES) particles.erase(particles.begin());
 	auto p = std::make_shared<Particle>();
-	(*p).age = 0.0f;
+	(*p).age = 0;
 	(*p).px = 0.0f;
-	(*p).py = fountainSize + 4.0f;
+	(*p).py = fountainSize + 3.0f;
 	(*p).pz = 0.0f;
-	(*p).dx = (rand() % 100 - 50) * 0.01f;
-	(*p).dy = 1.0f + (rand() % 100) * 0.01f;
-	(*p).dz = (rand() % 100 - 50) * 0.01f;
+	(*p).dx = sprayMode ? (rand() % 100 - 50) * 0.02f : (rand() % 100 - 50) * 0.008f;
+	(*p).dz = sprayMode ? (rand() % 100 - 50) * 0.02f : (rand() % 100 - 50) * 0.008f;
+	(*p).dy = 1.5f;
 	(*p).rx = 0.0f;
 	(*p).ry = 0.0f;
 	(*p).rz = 0.0f;
 	(*p).rix = randomRotation ? (0.01 * (rand() % 360) - 180) : 0.0f;
 	(*p).riy = randomRotation ? (0.01 * (rand() % 360) - 180) : 0.0f;
 	(*p).riz = randomRotation ? (0.01 * (rand() % 360) - 180) : 0.0f;
-	(*p).scale = randomScale ? (rand() % 100) * 0.01f : 1.0f;
+	(*p).scale = randomScale ? (rand() % 100) * 0.02f : 1.0f;
 	(*p).shape = randomShape ? static_cast<Shape>(rand() % 6) : userShape;
 
 	if (randomColor) {
-		(*p).color.randomize();
+		(*p).colour.randomize();
 	}
 	else { // default to blue (water)
-		(*p).color.r = 0.16f;
-		(*p).color.g = 0.25f;
-		(*p).color.b = 0.49f;
+		(*p).colour.r = 0.16f;
+		(*p).colour.g = 0.25f;
+		(*p).colour.b = 0.49f;
 	}
 
 	if (randomSpeed) {
@@ -227,18 +218,30 @@ void updateParticles() {
 		(*p).ry += (*p).riy;
 		(*p).rz += (*p).riz;
 
-		(*p).age += 0.025f;
+		(*p).age += 1;
+
+		if (showTrails) {
+			if ((*p).trails.size() < TRAIL_LEN) {
+				Trail trail = { (*p).px, (*p).py, (*p).pz, (*p).colour };
+				(*p).trails.push_back(trail);
+			}
+			else {
+				(*p).trails.erase((*p).trails.begin());
+				Trail trail = { (*p).px, (*p).py, (*p).pz, (*p).colour };
+				(*p).trails.push_back(trail);
+			}
+		}
 	}
 
 	particles.erase(std::remove_if(particles.begin(), particles.end(), [bounceCutoff](const std::shared_ptr<Particle>& p) {
-		return (*p).speed < bounceCutoff || (*p).age >= 5;
+		return (*p).age >= MAX_AGE;
 		}), particles.end());
 }
 
 void drawParticles() {
 	for (auto& p : particles) {
 		glPushMatrix();
-		glColor3f((*p).color.r, (*p).color.g, (*p).color.b);
+		glColor3f((*p).colour.r, (*p).colour.g, (*p).colour.b);
 		glTranslatef((*p).px, (*p).py, (*p).pz);
 		glRotatef((*p).rx, 1.0f, 0.0f, 0.0f);
 		glRotatef((*p).ry, 0.0f, 1.0f, 0.0f);
@@ -266,6 +269,16 @@ void drawParticles() {
 			break;
 		}
 		glPopMatrix();
+
+		// trails
+		if (showTrails) {
+			glBegin(GL_LINE_STRIP);
+			for (auto& t : (*p).trails) {
+				glColor3f(t.colour.r, t.colour.g, t.colour.b);
+				glVertex3f(t.px, t.py, t.pz);
+			}
+			glEnd();
+		}
 	}
 }
 
@@ -273,13 +286,15 @@ void drawParticles() {
 void reset() {
 	particles.clear();
 	randomSpeed = false; 			// random speed toggle
-	randomColor = false; 			// random color toggle
+	randomColor = false; 			// random colour toggle
 	randomShape = false; 			// random shape toggle
 	userShape = TETRAHEDRON; 		// user selected shape default
 	randomScale = false; 			// random scale toggle
 	randomRotation = true; 			// random rotation toggle
 	moonGravity = false; 			// moon gravity toggle
 	fireMode = CONTINUOUS; 			// fire mode default
+	showTrails = false; 			// show trails toggle
+	sprayMode = false; 				// spray mode toggle
 	fired = false; 					// firing toggle
 }
 
@@ -293,21 +308,21 @@ void drawText(const std::string& text, float x, float y) {
 void drawMenu() {
 	// pos vars
 	int gap = 12;
-	int first = gap*9.5;
+	int first = gap * 11.5;
 	int mWidth1 = 170;
 	int mWidth2 = 400;
 
 	glColor3f(0.8, 0.8, 0.8);
 
 	if (showMenu) {
-		drawText("S - Random speed: " + std::string(randomSpeed ? "true" : "false"), 10, first - gap);
+		drawText("S - Random speed: " + std::string(randomSpeed ? "ON" : "OFF"), 10, first - gap);
 		drawText("Q - Toggle fire mode", 10, first - gap * 2);
 		if (fireMode == 0) drawText(" | Continuous", mWidth1, first - gap * 2);
 		else if (fireMode == 1) drawText(" | F - Hold to fire", mWidth1, first - gap * 2);
 		else if (fireMode == 2) drawText(" | F - Single fire", mWidth1, first - gap * 2);
 
-		drawText("C - Random color: " + std::string(randomColor ? "true" : "false"), 10, first - gap * 3);
-		drawText("X - Random shape: " + std::string(randomShape ? "true" : std::to_string(userShape + 1)), 10, first - gap * 4);
+		drawText("C - Random colour: " + std::string(randomColor ? "ON" : "OFF"), 10, first - gap * 3);
+		drawText("X - Random shape: " + std::string(randomShape ? "ON" : std::to_string(userShape + 1)), 10, first - gap * 4);
 		if (!randomShape) {
 			drawText("1 - Sphere", mWidth2, first - gap);
 			drawText("2 - Cube", mWidth2, first - gap * 2);
@@ -316,15 +331,29 @@ void drawMenu() {
 			drawText("5 - Cone", mWidth2, first - gap * 5);
 			drawText("6 - Cylinder", mWidth2, first - gap * 6);
 		}
-		drawText("Z - Random scale: " + std::string(randomScale ? "true" : "false"), 10, first - gap * 5);
-		drawText("R - Random rotation: " + std::string(randomRotation ? "true" : "false"), 10, first - gap * 6);
-		drawText("G - Moon gravity: " + std::string(moonGravity ? "true" : "false"), 10, first - gap * 7);
-		drawText("I - Initialize", 10, first - gap * 8);
-		drawText("H - Toggle menu", 10, first - gap * 9);
+		drawText("Z - Random scale: " + std::string(randomScale ? "ON" : "OFF"), 10, first - gap * 5);
+		drawText("R - Random rotation: " + std::string(randomRotation ? "ON" : "OFF"), 10, first - gap * 6);
+		drawText("G - Moon gravity: " + std::string(moonGravity ? "ON" : "OFF"), 10, first - gap * 7);
+		drawText("T - Toggle trails: " + std::string(showTrails ? "ON" : "OFF"), 10, first - gap * 8);
+		drawText("A - Spray mode: " + std::string(sprayMode ? "WIDE" : "NARROW"), 10, first - gap * 9);
+		drawText("I - Initialize", 10, first - gap * 10);
+		drawText("H - Toggle menu", 10, first - gap * 11);
 	}
 	else {
 		drawText("H - Toggle menu", 10, gap * 0.5);
 	}
+}
+
+// sets up lighting 
+void setupLighting() {
+	glEnable(GL_LIGHTING);
+	glEnable(GL_LIGHT0);
+
+	GLfloat ambientLight[] = { 0.3f, 0.3f, 0.3f, 1.0f };
+	GLfloat lightPosition[] = { 50.0f, 50.0f, 50.0f, 1.0f };
+
+	glLightfv(GL_LIGHT0, GL_AMBIENT, ambientLight);
+	glLightfv(GL_LIGHT0, GL_POSITION, lightPosition);
 }
 
 void display() {
@@ -340,7 +369,6 @@ void display() {
 	drawFountain();
 	drawParticles();
 
-	// overlay
 	glMatrixMode(GL_PROJECTION);
 	glPushMatrix();
 	glLoadIdentity();
@@ -349,6 +377,7 @@ void display() {
 	glPushMatrix();
 	glLoadIdentity();
 
+	// menu overlay
 	drawMenu();
 
 	// Restore the matrices
@@ -385,7 +414,7 @@ void keyboard(unsigned char key, int x, int y) {
 	case 's': // s - toggle random particle speed
 		randomSpeed = !randomSpeed;
 		break;
-	case 'c': // c - toggle random color
+	case 'c': // c - toggle random colour
 		randomColor = !randomColor;
 		break;
 	case 'x': // x - toggle random shape
@@ -411,6 +440,13 @@ void keyboard(unsigned char key, int x, int y) {
 	case 'g': // g - toggle moon gravity
 		moonGravity = !moonGravity;
 		break;
+	case 't': // t - toggle trails
+		showTrails = !showTrails;
+		break;
+	case 'a': // a - toggle spray mode
+		sprayMode = !sprayMode;
+		break;
+	// shape selection
 	case '1':
 		userShape = SPHERE;
 		break;
@@ -454,11 +490,12 @@ void mouse(int button, int state, int x, int y) {
 		else clicked = false;
 	}
 	// zoom controls
-	if (button == 3 && state == GLUT_UP && zoom < -1.0f) zoom += 5.0f;
-	if (button == 4 && state == GLUT_UP) zoom -= 5.0f;
+	if (button == 3 && state == GLUT_DOWN && zoom < -1.0f) zoom += 5.0f;
+	if (button == 4 && state == GLUT_DOWN) zoom -= 5.0f;
 	glutPostRedisplay();
 }
 
+// dragging for camera
 void motion(int x, int y) {
 	if (clicked) {
 		yr += (x - lx) * 0.5f;
