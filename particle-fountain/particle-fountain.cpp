@@ -145,6 +145,14 @@ void drawFountain() {
 	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
 	glutSolidCone(3.0f, 3.0f, 20, 20);
 	glPopMatrix();
+
+	glColor3f(0.13, 0.17, 0.34);
+	// water on top
+	glPushMatrix();
+	glTranslatef(0.0f, fountainSize + 3.01f, 0.0f);
+	glRotatef(90.0f, 1.0f, 0.0f, 0.0f);
+	glutSolidCone(2.5f, 2.5f, 20, 20);
+	glPopMatrix();
 }
 
 // creates a particle
