@@ -27,6 +27,11 @@ struct Color {
 	}
 };
 
+struct Trail {
+	float px, py, pz;               // position
+	Color colour;	                // colour
+};
+
 // particle struct
 struct Particle {
 	float px, py, pz;               // position
